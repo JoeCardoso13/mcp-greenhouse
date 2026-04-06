@@ -1,28 +1,66 @@
 {
   "manifest_version": "0.4",
-  "name": "@nimblebraininc/example",
+  "name": "@JoeCardoso13/greenhouse",
+  "display_name": "Greenhouse",
   "version": "0.1.0",
-  "description": "MCP server for the Example API",
+  "description": "MCP server for the public Greenhouse Job Board API, focused on polling boards and normalizing job postings.",
   "author": {
     "name": "NimbleBrain Inc"
   },
-  "user_config": {
-    "api_key": {
-      "type": "string",
-      "title": "Example API Key",
-      "description": "Your API key from https://example.com/settings/api",
-      "sensitive": true,
-      "required": true
-    }
-  },
   "server": {
     "type": "python",
-    "entry_point": "mcp_example.server",
+    "entry_point": "mcp_greenhouse.server",
     "mcp_config": {
       "command": "python",
-      "args": ["-m", "mcp_example.server"],
-      "env": {
-        "EXAMPLE_API_KEY": "${user_config.api_key}"
+      "args": [
+        "-m",
+        "mcp_greenhouse.server"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "name": "get_job_board",
+      "description": "Fetch the board-level name and intro content for a Greenhouse board token."
+    },
+    {
+      "name": "list_company_jobs",
+      "description": "List current public Greenhouse job postings for a board."
+    },
+    {
+      "name": "get_job_details",
+      "description": "Fetch a single job posting with optional questions and pay transparency data."
+    },
+    {
+      "name": "list_departments",
+      "description": "List departments and their jobs for a Greenhouse board."
+    },
+    {
+      "name": "list_offices",
+      "description": "List offices and their department/job groupings for a Greenhouse board."
+    },
+    {
+      "name": "normalize_job_data",
+      "description": "Map Greenhouse jobs into a stable normalized schema for downstream storage."
+    },
+    {
+      "name": "inspect_job_attributes",
+      "description": "Report whether salary, experience-level, workplace-type, and related metadata are present for a job."
+    },
+    {
+      "name": "list_new_or_updated_jobs",
+      "description": "Compare current jobs against a prior snapshot to detect new or changed postings."
+    }
+  ],
+  "_meta": {
+    "org.mpaktrust": {
+      "mtf_version": "0.1",
+      "permissions": {
+        "network": "outbound",
+        "filesystem": "none",
+        "subprocess": "none",
+        "environment": "none",
+        "native": "none"
       }
     }
   }

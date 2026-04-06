@@ -1,123 +1,110 @@
-"""Unit tests for the Example API client."""
+"""Unit tests for the Greenhouse API client."""
 
-import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
 
-from mcp_example.api_client import ExampleAPIError, ExampleClient
+from mcp_greenhouse.api_client import GreenhouseAPIError, GreenhouseClient
 
 
 @pytest_asyncio.fixture
-async def mock_client():
-    """Create an ExampleClient with mocked session."""
-    client = ExampleClient(api_key="test_key")
-    client._session = AsyncMock()
-    yield client
-    await client.close()
+async def client():
+    """Create a client with a mocked session."""
+    instance = GreenhouseClient()
+    instance._session = AsyncMock()
+    yield instance
+    await instance.close()
 
 
 class TestClientInitialization:
     """Test client creation and configuration."""
 
-    def test_init_with_explicit_key(self):
-        """Client accepts an explicit API key."""
-        client = ExampleClient(api_key="explicit_key")
-        assert client.api_key == "explicit_key"
+    def test_init_defaults(self):
+        """Client defaults to the public Greenhouse base URL."""
+        client = GreenhouseClient()
+        assert client.base_url == "https://boards-api.greenhouse.io/v1"
+        assert client.timeout == 30.0
 
-    def test_init_with_env_var(self):
-        """Client falls back to EXAMPLE_API_KEY env var."""
-        os.environ["EXAMPLE_API_KEY"] = "env_key"
-        try:
-            client = ExampleClient()
-            assert client.api_key == "env_key"
-        finally:
-            del os.environ["EXAMPLE_API_KEY"]
-
-    def test_init_without_key_raises(self):
-        """Client raises ValueError when no key is available."""
-        with patch.dict(os.environ, {}, clear=True):
-            os.environ.pop("EXAMPLE_API_KEY", None)
-            with pytest.raises(ValueError, match="EXAMPLE_API_KEY is required"):
-                ExampleClient()
-
-    def test_custom_timeout(self):
-        """Client accepts a custom timeout."""
-        client = ExampleClient(api_key="key", timeout=60.0)
-        assert client.timeout == 60.0
+    def test_custom_timeout_and_base_url(self):
+        """Client accepts custom timeout and base URL."""
+        client = GreenhouseClient(timeout=10.0, base_url="https://example.test/v1/")
+        assert client.timeout == 10.0
+        assert client.base_url == "https://example.test/v1"
 
     @pytest.mark.asyncio
     async def test_context_manager(self):
         """Client works as an async context manager."""
-        async with ExampleClient(api_key="test") as client:
-            assert client._session is not None
-        assert client._session is None
+        async with GreenhouseClient() as managed:
+            assert managed._session is not None
+        assert managed._session is None
 
 
 class TestClientMethods:
     """Test API client methods with mocked responses."""
 
     @pytest.mark.asyncio
-    async def test_list_items(self, mock_client):
-        """Test list items endpoint."""
-        mock_response = {"items": [{"id": "1", "name": "Item 1"}, {"id": "2", "name": "Item 2"}]}
-        with patch.object(mock_client, "_request", return_value=mock_response):
-            result = await mock_client.list_items(limit=10)
-        assert len(result) == 2
+    async def test_get_job_board(self, client):
+        """Board metadata is parsed into a JobBoard model."""
+        with patch.object(
+            client, "_request", return_value={"name": "Acme", "content": "<p>Hello</p>"}
+        ):
+            board = await client.get_job_board("acme")
+        assert board.name == "Acme"
 
     @pytest.mark.asyncio
-    async def test_get_item(self, mock_client):
-        """Test get item endpoint."""
-        mock_response = {"id": "1", "name": "Item 1", "description": "Test"}
-        with patch.object(mock_client, "_request", return_value=mock_response):
-            result = await mock_client.get_item("1")
-        assert result["id"] == "1"
+    async def test_list_jobs(self, client):
+        """Job lists are parsed and the total is preserved."""
+        with patch.object(
+            client,
+            "_request",
+            return_value={"jobs": [{"id": 1, "title": "Engineer"}], "meta": {"total": 1}},
+        ):
+            jobs = await client.list_jobs("acme", include_content=True)
+        assert len(jobs.jobs) == 1
+        assert jobs.meta.total == 1
+
+    @pytest.mark.asyncio
+    async def test_get_job(self, client):
+        """Single job lookups are parsed into a JobDetail model."""
+        with patch.object(client, "_request", return_value={"id": 1, "title": "Engineer"}):
+            job = await client.get_job("acme", 1, questions=True, pay_transparency=True)
+        assert job.id == 1
+        assert job.title == "Engineer"
+
+    @pytest.mark.asyncio
+    async def test_list_departments(self, client):
+        """Department listings are parsed into typed responses."""
+        with patch.object(
+            client, "_request", return_value={"departments": [{"id": 1, "name": "Eng"}]}
+        ):
+            response = await client.list_departments("acme", render_as="tree")
+        assert response.departments[0].name == "Eng"
+
+    @pytest.mark.asyncio
+    async def test_list_offices(self, client):
+        """Office listings are parsed into typed responses."""
+        with patch.object(
+            client, "_request", return_value={"offices": [{"id": 10, "name": "Remote"}]}
+        ):
+            response = await client.list_offices("acme")
+        assert response.offices[0].name == "Remote"
 
 
 class TestErrorHandling:
     """Test error handling for API errors."""
 
     @pytest.mark.asyncio
-    async def test_401_unauthorized(self, mock_client):
-        """Test handling of unauthorized errors."""
+    async def test_list_jobs_propagates_api_error(self, client):
+        """Explicit API errors bubble up unchanged."""
         with patch.object(
-            mock_client,
-            "_request",
-            side_effect=ExampleAPIError(401, "Invalid API key"),
+            client, "_request", side_effect=GreenhouseAPIError(404, "Board not found")
         ):
-            with pytest.raises(ExampleAPIError) as exc_info:
-                await mock_client.list_items()
-            assert exc_info.value.status == 401
-
-    @pytest.mark.asyncio
-    async def test_429_rate_limit(self, mock_client):
-        """Test handling of rate limit errors."""
-        with patch.object(
-            mock_client,
-            "_request",
-            side_effect=ExampleAPIError(429, "Rate limit exceeded"),
-        ):
-            with pytest.raises(ExampleAPIError) as exc_info:
-                await mock_client.list_items()
-            assert exc_info.value.status == 429
-
-    @pytest.mark.asyncio
-    async def test_network_error(self, mock_client):
-        """Test handling of network errors."""
-        with patch.object(
-            mock_client,
-            "_request",
-            side_effect=ExampleAPIError(500, "Network error: Connection failed"),
-        ):
-            with pytest.raises(ExampleAPIError) as exc_info:
-                await mock_client.list_items()
-            assert exc_info.value.status == 500
-            assert "Network error" in exc_info.value.message
+            with pytest.raises(GreenhouseAPIError, match="Board not found"):
+                await client.list_jobs("missing-board")
 
     def test_error_string_representation(self):
-        """Test error string format."""
-        err = ExampleAPIError(401, "Unauthorized", {"id": "auth_error"})
+        """The exception string includes status and message."""
+        err = GreenhouseAPIError(401, "Unauthorized", {"message": "Unauthorized"})
         assert "401" in str(err)
         assert "Unauthorized" in str(err)
-        assert err.details == {"id": "auth_error"}

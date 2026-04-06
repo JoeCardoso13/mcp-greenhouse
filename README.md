@@ -1,60 +1,49 @@
-# Example MCP Server
+# Greenhouse MCP Server
 
-An MCP (Model Context Protocol) server that provides access to the Example API, allowing AI assistants to interact with Example data.
+An MCP server for the public Greenhouse Job Board API. It is designed for polling job boards, normalizing job data, and checking whether postings expose salary, experience-level, and workplace-type signals.
 
 ## Features
 
-- List and retrieve items from the Example API
-- Async HTTP client with error handling
+- Public read-only Greenhouse Job Board integration
+- Normalized job output for downstream storage and diffing
+- Salary and metadata inspection for individual job postings
 - Typed responses with Pydantic models
 
 ## Installation
 
-### Using mpak (Recommended)
+### Using mpak
 
 ```bash
-# Configure your API key
-mpak config set @nimblebraininc/example api_key=your_api_key_here
-
-# Run the server
-mpak run @nimblebraininc/example
+mpak run @JoeCardoso13/greenhouse
 ```
 
 ### Manual Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/NimbleBrainInc/mcp-example.git
-cd mcp-example
-
-# Install dependencies with uv
-uv sync
-
-# Set your API key
-export EXAMPLE_API_KEY=your_api_key_here
-
-# Run the server
-uv run python -m mcp_example.server
+git clone https://github.com/JoeCardoso13/mcp-greenhouse.git
+cd mcp-greenhouse
+uv sync --dev
+uv run python -m mcp_greenhouse.server
 ```
 
 ## Configuration
 
-### Getting Your API Key
+Runtime configuration is not required for the public GET endpoints used by this server.
 
-1. Go to https://example.com/settings/api
-2. Create a new API key
-3. Copy the key
+For live integration tests, set a board token in `.env` or your shell:
+
+```bash
+export GREENHOUSE_BOARD_TOKEN=your_board_token
+```
 
 ### Claude Desktop Configuration
-
-Add to your `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
-    "example": {
+    "greenhouse": {
       "command": "mpak",
-      "args": ["run", "@nimblebraininc/example"]
+      "args": ["run", "@JoeCardoso13/greenhouse"]
     }
   }
 }
@@ -64,30 +53,23 @@ Add to your `~/.claude/settings.json`:
 
 | Tool | Description |
 |------|-------------|
-| `list_items` | List items from the API with optional limit |
-| `get_item` | Get a single item by its ID |
+| `get_job_board` | Fetch the board-level name and intro content |
+| `list_company_jobs` | List current public Greenhouse jobs |
+| `get_job_details` | Fetch a single job with optional question and pay data |
+| `list_departments` | List departments and associated jobs |
+| `list_offices` | List offices and associated departments/jobs |
+| `normalize_job_data` | Convert public jobs into a stable normalized schema |
+| `inspect_job_attributes` | Check salary, experience-level, and workplace-type coverage |
+| `list_new_or_updated_jobs` | Detect new or changed jobs from a prior snapshot |
 
 ## Development
 
 ```bash
-# Install dev dependencies
 uv sync --dev
-
-# Run tests
-uv run pytest tests/ -v
-
-# Format code
-uv run ruff format src/ tests/
-
-# Lint
-uv run ruff check src/ tests/
-
-# Type check
-uv run ty check src/
-
-# Run all checks
 make check
 ```
+
+Integration tests require `GREENHOUSE_BOARD_TOKEN`. LLM smoke tests require `ANTHROPIC_API_KEY`.
 
 ## License
 

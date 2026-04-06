@@ -14,8 +14,8 @@
 
 ```bash
 # Clone the repo
-git clone https://github.com/NimbleBrainInc/mcp-example.git
-cd mcp-example
+git clone https://github.com/NimbleBrainInc/mcp-greenhouse.git
+cd mcp-greenhouse
 
 # Install dependencies
 uv sync --dev
@@ -37,15 +37,15 @@ mpak skill install @nimblebraininc/build-mcpb
 
 ### Adding a New Tool
 
-1. **Add response models** to `src/mcp_example/api_models.py`
-2. **Add client methods** to `src/mcp_example/api_client.py`
-3. **Add the tool** to `src/mcp_example/server.py` using `@mcp.tool()`
+1. **Add response models** to `src/mcp_greenhouse/api_models.py`
+2. **Add client methods** to `src/mcp_greenhouse/api_client.py`
+3. **Add the tool** to `src/mcp_greenhouse/server.py` using `@mcp.tool()`
 4. **Add tests** to `tests/`
 5. **Run checks**: `make check`
 
 ### Tool Design Guidelines
 
-- One tool per API operation (`list_items`, `get_item`, `create_item`)
+- One tool per clear API operation or workflow (`list_company_jobs`, `get_job_details`, `normalize_job_data`)
 - Clear docstrings with Args/Returns sections
 - Optional `ctx: Context | None = None` parameter for logging
 - Return Pydantic models, not raw dicts

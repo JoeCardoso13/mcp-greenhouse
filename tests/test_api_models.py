@@ -1,65 +1,74 @@
-"""Tests for Example API models."""
+"""Tests for Greenhouse API models."""
 
-from mcp_example.api_models import Item, ItemListResponse, Pagination
-
-
-def test_item_model() -> None:
-    """Test Item model parsing from API response."""
-    data = {
-        "id": "item_123",
-        "name": "Test Item",
-        "description": "A test item",
-        "createdAt": "2026-01-01T00:00:00Z",
-        "updatedAt": "2026-01-02T00:00:00Z",
-        "metadata": {"key": "value"},
-    }
-    item = Item(**data)
-    assert item.id == "item_123"
-    assert item.name == "Test Item"
-    assert item.created_at == "2026-01-01T00:00:00Z"
-    assert item.metadata == {"key": "value"}
+from mcp_greenhouse.api_models import (
+    JobAttributeReport,
+    JobChangeSet,
+    JobListResponse,
+    JobSummary,
+    NormalizedJobPosting,
+)
 
 
-def test_item_model_minimal() -> None:
-    """Test Item model with only required fields."""
-    item = Item(id="item_456")
-    assert item.id == "item_456"
-    assert item.name is None
-    assert item.metadata == {}
+def test_job_summary_model() -> None:
+    """JobSummary parses public Greenhouse fields."""
+    job = JobSummary.model_validate(
+        {
+            "id": 123,
+            "internal_job_id": 456,
+            "title": "Platform Engineer",
+            "updated_at": "2026-04-01T00:00:00Z",
+            "location": {"name": "Berlin"},
+            "absolute_url": "https://boards.greenhouse.io/acme/jobs/123",
+            "metadata": [{"name": "Level", "value": "Senior"}],
+        }
+    )
+    assert job.id == 123
+    assert job.location is not None
+    assert job.location.name == "Berlin"
+    assert isinstance(job.metadata, list)
 
 
-def test_pagination_model() -> None:
-    """Test Pagination model."""
-    data = {"nextCursor": "abc123", "hasMore": True}
-    pagination = Pagination(**data)
-    assert pagination.next_cursor == "abc123"
-    assert pagination.has_more is True
+def test_job_list_response_defaults() -> None:
+    """Job list responses default to an empty list and empty meta."""
+    response = JobListResponse()
+    assert response.jobs == []
+    assert response.meta.total is None
 
 
-def test_pagination_defaults() -> None:
-    """Test Pagination model defaults."""
-    pagination = Pagination()
-    assert pagination.next_cursor is None
-    assert pagination.has_more is False
+def test_normalized_job_posting_defaults() -> None:
+    """Normalized jobs provide stable default collections."""
+    posting = NormalizedJobPosting(
+        job_id=1,
+        board_token="acme",
+        title="Engineer",
+    )
+    assert posting.departments == []
+    assert posting.offices == []
+    assert posting.metadata == {}
+    assert posting.has_salary_data is False
 
 
-def test_item_list_response() -> None:
-    """Test ItemListResponse model."""
-    data = {
-        "items": [
-            {"id": "1", "name": "First"},
-            {"id": "2", "name": "Second"},
-        ],
-        "pagination": {"nextCursor": "next", "hasMore": True},
-    }
-    response = ItemListResponse(**data)
-    assert len(response.items) == 2
-    assert response.items[0].id == "1"
-    assert response.pagination.has_more is True
+def test_attribute_report_model() -> None:
+    """Attribute reports capture field presence flags."""
+    report = JobAttributeReport(
+        job_id=1,
+        board_token="acme",
+        has_salary_data=True,
+        has_experience_level=True,
+        has_workplace_type=False,
+        has_department_data=True,
+        has_office_data=False,
+        metadata_field_names=["Experience Level"],
+        experience_level_values=["Senior"],
+        salary_range_count=1,
+    )
+    assert report.has_salary_data is True
+    assert report.salary_range_count == 1
 
 
-def test_item_list_response_empty() -> None:
-    """Test ItemListResponse with empty results."""
-    response = ItemListResponse()
-    assert response.items == []
-    assert response.pagination.has_more is False
+def test_job_change_set_model() -> None:
+    """Change sets carry snapshot state across polling runs."""
+    changes = JobChangeSet(board_token="acme")
+    assert changes.new_jobs == []
+    assert changes.updated_jobs == []
+    assert changes.current_snapshot == []
