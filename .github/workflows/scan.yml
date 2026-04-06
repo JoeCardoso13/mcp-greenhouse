@@ -27,7 +27,17 @@ jobs:
         run: npx @anthropic-ai/mcpb pack
 
       - name: Run MTF scanner
-        run: uvx mpak-scanner scan *.mcpb --json > scan-results.json
+        run: |
+          uvx mpak-scanner scan *.mcpb --json | tee scan-output.txt
+          python3 - <<'PY'
+          from pathlib import Path
+
+          raw = Path("scan-output.txt").read_text()
+          start = raw.find("{")
+          if start == -1:
+              raise SystemExit("No JSON payload found in scanner output")
+          Path("scan-results.json").write_text(raw[start:])
+          PY
 
       - name: Check for critical/high findings
         run: |
