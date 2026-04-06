@@ -12,6 +12,7 @@ __pycache__/
 
 # Test files
 tests/
+tests-integration/
 
 # Build artifacts
 dist/
@@ -26,7 +27,7 @@ pytest.ini
 .env.*
 
 # Lock files
-uv.lock
+# Keep uv.lock in the bundle for integrity metadata
 
 # IDE
 .vscode/

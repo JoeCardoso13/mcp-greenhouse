@@ -5,7 +5,12 @@
   "version": "0.1.0",
   "description": "MCP server for the public Greenhouse Job Board API, focused on polling boards and normalizing job postings.",
   "author": {
-    "name": "NimbleBrain Inc"
+    "name": "NimbleBrain Inc",
+    "email": "hello@nimblebrain.ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JoeCardoso13/mcp-greenhouse"
   },
   "server": {
     "type": "python",
@@ -57,7 +62,7 @@
       "mtf_version": "0.1",
       "permissions": {
         "network": "outbound",
-        "filesystem": "none",
+        "filesystem": "read",
         "subprocess": "none",
         "environment": "none",
         "native": "none"
